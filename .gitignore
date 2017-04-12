@@ -31,3 +31,9 @@
 # Debug files
 *.dSYM/
 *.su
+
+# my own
+*build/
+*.bin
+*.uvgui*
+*project.uvopt
