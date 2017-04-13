@@ -41,6 +41,7 @@
 #endif
 
 #include "led.h"
+#include "mylcd.h"
 
 ALIGN(RT_ALIGN_SIZE)
 static rt_uint8_t led_stack[ 512 ];
@@ -49,7 +50,18 @@ static void led_thread_entry(void* parameter)
 {
     unsigned int count=0;
 
+		u8 lcd_id[12];			//存放LCD ID字符串
     rt_hw_led_init();
+
+		LCD_Init();
+		POINT_COLOR=RED;
+
+		sprintf((char*)lcd_id,"LCD ID:%04X",lcd_dev.id);//将LCD ID打印到lcd_id数组。
+		my_lcd_show_string(30,40,200,24,24,"Mini STM32 ^_^");
+		my_lcd_show_string(30,70,200,16,16,"TFTLCD TEST");
+		my_lcd_show_string(30,90,200,16,16,"ATOM@ALIENTEK");
+		my_lcd_show_string(30,110,200,16,16,lcd_id);		//显示LCD ID
+		my_lcd_show_string(30,130,200,12,12,"2014/3/7");
 
     while (1)
     {
