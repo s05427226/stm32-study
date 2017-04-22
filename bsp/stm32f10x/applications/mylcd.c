@@ -31,7 +31,7 @@ void my_lcd_draw_point(u16 x,u16 y)
 {
 	my_lcd_set_cursor(x,y);
 	my_lcd_write_ram_prepare();
-	LCD->LCD_RAM = POINT_COLOR;
+	my_lcd_wr_data(POINT_COLOR);
 }
 
 void my_lcd_fast_draw_point(u16 x,u16 y,u16 color)
@@ -102,8 +102,14 @@ void my_lcd_display_dir(u8 dir)
 	if(dir==0)			//竖屏
 	{
 		lcd_dev.dir=0;	//竖屏
-		lcd_dev.width=240;
-		lcd_dev.height=320;
+		lcd_dev.width=232;
+		lcd_dev.height=328;
+		if(lcd_dev.id == 0x9328)
+		{
+			lcd_dev.wramcmd=0X22;
+	 		lcd_dev.setxcmd=0X20;
+			lcd_dev.setycmd=0X21;
+		}
 		if(lcd_dev.id==0X9341||lcd_dev.id==0X6804||lcd_dev.id==0X5310)
 		{
 			lcd_dev.wramcmd=0X2C;
@@ -137,6 +143,14 @@ void my_lcd_display_dir(u8 dir)
 	}else 				//横屏
 	{
 		lcd_dev.dir=1;	//横屏
+		lcd_dev.width=328;
+		lcd_dev.height=232;
+		if(lcd_dev.id == 0x9328)
+		{
+			lcd_dev.wramcmd=0X22;
+	 		lcd_dev.setxcmd=0X20;
+			lcd_dev.setycmd=0X21;
+		}
 		lcd_dev.width=320;
 		lcd_dev.height=240;
 		if(lcd_dev.id==0X9341||lcd_dev.id==0X5310)
@@ -297,10 +311,10 @@ u16 my_lcd_read_point(u16 x,u16 y)
 void my_lcd_show_char(u16 x,u16 y,u8 num,u8 size,u8 mode)
 {
 	u8 temp,t1,t;
-	u16 y0 = y;
+	u16 x0=x;
 	u16 color_tmp = POINT_COLOR;
 
-	num = num - '0';
+	num = num - ' ';
 	
 	if(!mode)
 	{
@@ -311,26 +325,19 @@ void my_lcd_show_char(u16 x,u16 y,u8 num,u8 size,u8 mode)
 			else
 				temp = asc2_1608[num][t];
 			
-			for(t1=0;t1<8;t1++)
+			for(t1=0;t1<size/2;t1++)
 			{
-				if(temp & 0x80)
+				if(temp & 0x01)
 					POINT_COLOR = color_tmp;
 				else
 					POINT_COLOR = BACK_COLOR;
 				
 				my_lcd_draw_point(x,y);
-				temp <<= 1;
-				y++;
-				
-				if(y >= lcd_dev.height) return;
-				if(y - y0 == size)
-				{
-					y = y0;
-					x++;
-					if(x >= lcd_dev.width) return;
-					break;
-				}
+				temp >>= 1;
+				x++;
 			}
+			x=x0;
+			y++;
 		}
 	}
 	else
@@ -342,22 +349,12 @@ void my_lcd_show_char(u16 x,u16 y,u8 num,u8 size,u8 mode)
 			else
 				temp = asc2_1608[num][t];
 			
-			for(t1=0;t1<8;t1++)
+			for(t1=0;t1<size/2;t1++)
 			{
-				if(temp & 0x80)
-					my_lcd_draw_point(x,y);
+				if(temp & 0x01);
+					my_lcd_draw_point(x+t1,y+t);
 			
-				temp <<= 1;
-				y++;
-				
-				if(y >= lcd_dev.height) return;
-				if(y - y0 == size)
-				{
-					y = y0;
-					x++;
-					if(x >= lcd_dev.width) return;
-					break;
-				}
+				temp >>= 1;
 			}
 		}
 	}
@@ -725,73 +722,66 @@ void my_lcd_show_string(u16 x,u16 y,u16 width,u16 height,u8 size,u8 *p)
 	u8 x0=x;
 	width+=x;
 	height+=y;
-    while((*p<='~')&&(*p>=' '))//判断是不是非法字符!
-    {       
-        if(x>=width){x=x0;y+=size;}
-        if(y>=height)break;//退出
-        my_lcd_show_char(x,y,*p,size,0);
-        x+=size/2;
-        p++;
-    }  
+	while((*p<='~')&&(*p>=' '))//判断是不是非法字符!
+	{       
+			if(x>=width){x=x0;y+=size;}
+			if(y>=height)break;//退出
+			my_lcd_show_char(x,y,*p,size,0);
+			x+=size/2;
+			p++;
+	}  
 }
 
 void LCD_Init()
 {
 	GPIO_InitTypeDef	GPIO_InitStruct;
-	FSMC_NORSRAMInitTypeDef FSMC_NORSRAMInitStruct;
-	FSMC_NORSRAMTimingInitTypeDef	Read_Write_Timing;
-	FSMC_NORSRAMTimingInitTypeDef Write_Timing;
+//	FSMC_NORSRAMInitTypeDef FSMC_NORSRAMInitStruct;
+//	FSMC_NORSRAMTimingInitTypeDef	Read_Write_Timing;
+//	FSMC_NORSRAMTimingInitTypeDef Write_Timing;
 	
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_FSMC,ENABLE);
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOD 
-		| RCC_APB2Periph_GPIOE | RCC_APB2Periph_GPIOG | RCC_APB2Periph_AFIO,ENABLE);
+//	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_FSMC,ENABLE);
 	
-	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_0;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_AFIO,ENABLE);
+	GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable , ENABLE);
+	
+	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 | GPIO_Pin_10;
 	GPIO_InitStruct.GPIO_Mode = GPIO_Mode_Out_PP;
 	GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOB,&GPIO_InitStruct);
+	GPIO_Init(GPIOC,&GPIO_InitStruct);
+	GPIO_SetBits(GPIOC,GPIO_Pin_10|GPIO_Pin_9|GPIO_Pin_8|GPIO_Pin_7|GPIO_Pin_6);
 	
-	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_4 
-		| GPIO_Pin_5 | GPIO_Pin_8 |GPIO_Pin_9 |GPIO_Pin_10 | GPIO_Pin_14 | GPIO_Pin_15;
-	GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF_PP;
-	GPIO_Init(GPIOD,&GPIO_InitStruct);
+	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_All;
+	GPIO_Init(GPIOB, &GPIO_InitStruct); //GPIOB 
+	GPIO_SetBits(GPIOB,GPIO_Pin_All);
 	
-	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9 
-		| GPIO_Pin_10 | GPIO_Pin_11 |GPIO_Pin_12 |GPIO_Pin_13 | GPIO_Pin_14 | GPIO_Pin_15;
-	GPIO_Init(GPIOE,&GPIO_InitStruct);
-	
-	GPIO_InitStruct.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_12;
-	GPIO_Init(GPIOE,&GPIO_InitStruct);
-	
-	Read_Write_Timing.FSMC_AddressSetupTime = 0x01;
-	Read_Write_Timing.FSMC_AddressHoldTime = 0x00;
-	Read_Write_Timing.FSMC_DataSetupTime = 0x0f;
-	Read_Write_Timing.FSMC_BusTurnAroundDuration = 0x00;
-	Read_Write_Timing.FSMC_CLKDivision = 0x00;
-	Read_Write_Timing.FSMC_DataLatency = 0x00;
-	Read_Write_Timing.FSMC_AccessMode = FSMC_AccessMode_A;
-	
-	FSMC_NORSRAMInitStruct.FSMC_Bank = FSMC_Bank1_NORSRAM4;
-	FSMC_NORSRAMInitStruct.FSMC_DataAddressMux = FSMC_DataAddressMux_Disable;
-	FSMC_NORSRAMInitStruct.FSMC_MemoryType = FSMC_MemoryType_SRAM;
-	FSMC_NORSRAMInitStruct.FSMC_MemoryDataWidth = FSMC_MemoryDataWidth_16b;
-	FSMC_NORSRAMInitStruct.FSMC_BurstAccessMode = FSMC_BurstAccessMode_Disable;
-	FSMC_NORSRAMInitStruct.FSMC_WaitSignalPolarity = FSMC_WaitSignalPolarity_Low;
-	FSMC_NORSRAMInitStruct.FSMC_AsynchronousWait = FSMC_AsynchronousWait_Disable;
-	FSMC_NORSRAMInitStruct.FSMC_WrapMode = FSMC_WrapMode_Disable;
-	FSMC_NORSRAMInitStruct.FSMC_WaitSignalActive = FSMC_WaitSignalActive_BeforeWaitState;
-	FSMC_NORSRAMInitStruct.FSMC_WriteOperation = FSMC_WriteOperation_Enable;
-	FSMC_NORSRAMInitStruct.FSMC_WaitSignal = FSMC_WaitSignal_Disable;
-	FSMC_NORSRAMInitStruct.FSMC_ExtendedMode = FSMC_ExtendedMode_Enable;
-	FSMC_NORSRAMInitStruct.FSMC_WriteBurst = FSMC_WriteBurst_Disable;
-	FSMC_NORSRAMInitStruct.FSMC_ReadWriteTimingStruct = &Read_Write_Timing;
-	FSMC_NORSRAMInitStruct.FSMC_WriteTimingStruct = &Write_Timing;
-	FSMC_NORSRAMInit(&FSMC_NORSRAMInitStruct);
-	
-	FSMC_NORSRAMCmd(FSMC_Bank1_NORSRAM4,ENABLE);
+//	Read_Write_Timing.FSMC_AddressSetupTime = 0x01;
+//	Read_Write_Timing.FSMC_AddressHoldTime = 0x00;
+//	Read_Write_Timing.FSMC_DataSetupTime = 0x0f;
+//	Read_Write_Timing.FSMC_BusTurnAroundDuration = 0x00;
+//	Read_Write_Timing.FSMC_CLKDivision = 0x00;
+//	Read_Write_Timing.FSMC_DataLatency = 0x00;
+//	Read_Write_Timing.FSMC_AccessMode = FSMC_AccessMode_A;
+//	
+//	FSMC_NORSRAMInitStruct.FSMC_Bank = FSMC_Bank1_NORSRAM4;
+//	FSMC_NORSRAMInitStruct.FSMC_DataAddressMux = FSMC_DataAddressMux_Disable;
+//	FSMC_NORSRAMInitStruct.FSMC_MemoryType = FSMC_MemoryType_NOR;
+//	FSMC_NORSRAMInitStruct.FSMC_MemoryDataWidth = FSMC_MemoryDataWidth_16b;
+//	FSMC_NORSRAMInitStruct.FSMC_BurstAccessMode = FSMC_BurstAccessMode_Disable;
+//	FSMC_NORSRAMInitStruct.FSMC_WaitSignalPolarity = FSMC_WaitSignalPolarity_Low;
+//	FSMC_NORSRAMInitStruct.FSMC_AsynchronousWait = FSMC_AsynchronousWait_Disable;
+//	FSMC_NORSRAMInitStruct.FSMC_WrapMode = FSMC_WrapMode_Disable;
+//	FSMC_NORSRAMInitStruct.FSMC_WaitSignalActive = FSMC_WaitSignalActive_BeforeWaitState;
+//	FSMC_NORSRAMInitStruct.FSMC_WriteOperation = FSMC_WriteOperation_Enable;
+//	FSMC_NORSRAMInitStruct.FSMC_WaitSignal = FSMC_WaitSignal_Disable;
+//	FSMC_NORSRAMInitStruct.FSMC_ExtendedMode = FSMC_ExtendedMode_Enable;
+//	FSMC_NORSRAMInitStruct.FSMC_WriteBurst = FSMC_WriteBurst_Disable;
+//	FSMC_NORSRAMInitStruct.FSMC_ReadWriteTimingStruct = &Read_Write_Timing;
+//	FSMC_NORSRAMInitStruct.FSMC_WriteTimingStruct = &Write_Timing;
+//	FSMC_NORSRAMInit(&FSMC_NORSRAMInitStruct);
+//	
+//	FSMC_NORSRAMCmd(FSMC_Bank1_NORSRAM4,ENABLE);
 	
 	delay_ms(50);
-	
 	my_lcd_write_reg(0x0000,0x0001);
 	delay_ms(50);
 	lcd_dev.id = my_lcd_read_reg(0x0000);
@@ -2145,7 +2135,7 @@ void LCD_Init()
 		// 1  1   1	   U->D	L->R
         my_lcd_write_reg(0x0003,(1<<12)|(3<<4)|(0<<3) );//65K    
         my_lcd_write_reg(0x0004,0x0000);                                   
-        my_lcd_write_reg(0x0008,0x0202);	           
+        my_lcd_write_reg(0x0008,0x0207);	           
         my_lcd_write_reg(0x0009,0x0000);         
         my_lcd_write_reg(0x000a,0x0000);//display setting         
         my_lcd_write_reg(0x000c,0x0001);//display setting          
@@ -2155,32 +2145,31 @@ void LCD_Init()
         my_lcd_write_reg(0x0010,0x0000);   
         my_lcd_write_reg(0x0011,0x0007);
         my_lcd_write_reg(0x0012,0x0000);                                                                 
-        my_lcd_write_reg(0x0013,0x0000);                 
-     	my_lcd_write_reg(0x0007,0x0001);                 
+        my_lcd_write_reg(0x0013,0x0000);                                 
        	delay_ms(50); 
-        my_lcd_write_reg(0x0010,0x1490);   
+        my_lcd_write_reg(0x0010,0x1590);   
         my_lcd_write_reg(0x0011,0x0227);
         delay_ms(50); 
-        my_lcd_write_reg(0x0012,0x008A);                  
+        my_lcd_write_reg(0x0012,0x009c);                  
         delay_ms(50); 
-        my_lcd_write_reg(0x0013,0x1a00);   
-        my_lcd_write_reg(0x0029,0x0006);
-        my_lcd_write_reg(0x002b,0x000d);
+        my_lcd_write_reg(0x0013,0x1900);   
+        my_lcd_write_reg(0x0029,0x0023);
+        my_lcd_write_reg(0x002b,0x000e);
         delay_ms(50); 
         my_lcd_write_reg(0x0020,0x0000);                                                            
-        my_lcd_write_reg(0x0021,0x0000);           
+        my_lcd_write_reg(0x0021,0x013f);           
 		delay_ms(50); 
 		//伽马校正
-        my_lcd_write_reg(0x0030,0x0000); 
-        my_lcd_write_reg(0x0031,0x0604);   
-        my_lcd_write_reg(0x0032,0x0305);
-        my_lcd_write_reg(0x0035,0x0000);
-        my_lcd_write_reg(0x0036,0x0C09); 
-        my_lcd_write_reg(0x0037,0x0204);
-        my_lcd_write_reg(0x0038,0x0301);        
-        my_lcd_write_reg(0x0039,0x0707);     
-        my_lcd_write_reg(0x003c,0x0000);
-        my_lcd_write_reg(0x003d,0x0a0a);
+        my_lcd_write_reg(0x0030,0x0007); 
+        my_lcd_write_reg(0x0031,0x0707);   
+        my_lcd_write_reg(0x0032,0x0006);
+        my_lcd_write_reg(0x0035,0x0704);
+        my_lcd_write_reg(0x0036,0x1f04); 
+        my_lcd_write_reg(0x0037,0x0004);
+        my_lcd_write_reg(0x0038,0x0000);        
+        my_lcd_write_reg(0x0039,0x0706);     
+        my_lcd_write_reg(0x003c,0x0701);
+        my_lcd_write_reg(0x003d,0x000f);
         delay_ms(50); 
         my_lcd_write_reg(0x0050,0x0000); //水平GRAM起始位置 
         my_lcd_write_reg(0x0051,0x00ef); //水平GRAM终止位置                    

@@ -63,14 +63,41 @@ extern u16 BACK_COLOR;
 
 #define DFT_SCAN_DIR  L2R_U2D  //默认的扫描方向
 
-__STATIC_INLINE	void my_lcd_wr_reg(u16 reg_val)
+//操作频繁，为了提高速度，建议直接寄存器操作
+#define	LCD_CS_SET  GPIOC->BSRR=1<<9    //片选端口  	     PC9
+#define	LCD_RS_SET	GPIOC->BSRR=1<<8    //数据/命令          PC8	   
+#define	LCD_WR_SET	GPIOC->BSRR=1<<7    //写数据			 PC7
+#define	LCD_RD_SET	GPIOC->BSRR=1<<6    //读数据			 PC6
+								    
+#define	LCD_CS_CLR  GPIOC->BRR=1<<9     //片选端口  	     PC9
+#define	LCD_RS_CLR	GPIOC->BRR=1<<8     //数据/命令          PC8	   
+#define	LCD_WR_CLR	GPIOC->BRR=1<<7     //写数据			 PC7
+#define	LCD_RD_CLR	GPIOC->BRR=1<<6     //读数据			 PC6
+
+//PB0~15,作为数据线
+//在这里，因为操作频繁，为了提高速度，建议直接用寄存器操作。
+#define DATAOUT(x) GPIOB->ODR=x; //数据输出
+#define DATAIN     GPIOB->IDR   //数据输入
+
+
+__STATIC_INLINE	void my_lcd_wr_reg(u16 data)
 {
-	LCD->LCD_REG = reg_val;
+	LCD_RS_CLR;//写地址  
+ 	LCD_CS_CLR; 
+	DATAOUT(data); 
+	LCD_WR_CLR; 
+	LCD_WR_SET; 
+ 	LCD_CS_SET;   
 }
 
 __STATIC_INLINE	void my_lcd_wr_data(u16 data)
 {
-	LCD->LCD_RAM = data;
+	LCD_RS_SET;
+	LCD_CS_CLR;
+	DATAOUT(data);
+	LCD_WR_CLR;
+	LCD_WR_SET;
+	LCD_CS_SET;
 }
 
 __STATIC_INLINE	u16 my_lcd_rd_data()
@@ -80,20 +107,36 @@ __STATIC_INLINE	u16 my_lcd_rd_data()
 
 __STATIC_INLINE	void my_lcd_write_reg(u16 lcd_reg,u16 reg_value)
 {
-	LCD->LCD_REG = lcd_reg;
-	LCD->LCD_RAM = reg_value;
+	my_lcd_wr_reg(lcd_reg);
+	my_lcd_wr_data(reg_value);
 }
 
-__STATIC_INLINE	u16 my_lcd_read_reg(u16 lcd_reg)
+__STATIC_INLINE	u16 my_lcd_read_reg(u8 lcd_reg)
 {
-	my_lcd_wr_reg(lcd_reg);
-	delay_us(5);
-	return my_lcd_rd_data();
+	u16 t;
+	my_lcd_wr_reg(lcd_reg);  //写入要读的寄存器号  
+	GPIOB->CRL=0X88888888; //PB0-7  上拉输入
+	GPIOB->CRH=0X88888888; //PB8-15 上拉输入
+	GPIOB->ODR=0XFFFF;    //全部输出高
+	
+	LCD_RS_SET;
+	LCD_CS_CLR;
+	//读取数据(读寄存器时,并不需要读2次)
+	LCD_RD_CLR;
+	delay_us(5);//FOR 8989,延时5us					   
+	LCD_RD_SET;
+	t=DATAIN;  
+	LCD_CS_SET; 
+ 
+	GPIOB->CRL=0X33333333; //PB0-7  上拉输出
+	GPIOB->CRH=0X33333333; //PB8-15 上拉输出
+	GPIOB->ODR=0XFFFF;    //全部输出高
+	return t;  
 }
 
 __STATIC_INLINE	void my_lcd_write_ram_prepare()
 {
-	LCD->LCD_REG = lcd_dev.wramcmd;
+	my_lcd_wr_reg(0x22);
 }
 
 //LCD分辨率设置

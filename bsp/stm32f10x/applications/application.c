@@ -50,14 +50,15 @@ static void led_thread_entry(void* parameter)
 {
     unsigned int count=0;
 
-		u8 lcd_id[12];			//存放LCD ID字符串
+		u8 lcd_id[20] = "hello";			//存放LCD ID字符串
+		u8 led_cnt[30] = "";			//存放LCD ID字符串
     rt_hw_led_init();
-
+		
 		LCD_Init();
 		POINT_COLOR=RED;
 
 		sprintf((char*)lcd_id,"LCD ID:%04X",lcd_dev.id);//将LCD ID打印到lcd_id数组。
-		my_lcd_show_string(30,40,200,24,24,"Mini STM32 ^_^");
+		my_lcd_show_string(30,40,200,16,16,"Mini STM32 ^_^");
 		my_lcd_show_string(30,70,200,16,16,"TFTLCD TEST");
 		my_lcd_show_string(30,90,200,16,16,"ATOM@ALIENTEK");
 		my_lcd_show_string(30,110,200,16,16,lcd_id);		//显示LCD ID
@@ -69,6 +70,8 @@ static void led_thread_entry(void* parameter)
 #ifndef RT_USING_FINSH
         rt_kprintf("led on, count : %d\r\n",count);
 #endif
+			sprintf((char*)led_cnt,"led on, count : %d",count);//将LCD ID打印到lcd_id数组。
+			my_lcd_show_string(30,300,200,12,12,led_cnt);
         count++;
         rt_hw_led_on(0);
         rt_thread_delay( RT_TICK_PER_SECOND/2 ); /* sleep 0.5 second and switch to other thread */
